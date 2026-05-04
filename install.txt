@@ -1,0 +1,26 @@
+
+Structure du projet by Gemini
+
+digit_recognition/
+│
+├── app.py              # Serveur Flask
+├── model.h5            # Modèle entraîné (à générer ou charger)
+├── static/
+│   ├── js/
+│   │   └── canvas.js   # Logique pour dessiner sur le canevas
+│   └── css/
+│       └── style.css
+└── templates/
+    └── index.html      # Interface utilisateur
+
+
+
+Rappel pour l'installation :
+
+    Crée un dossier nommé templates et mets-y le code HTML ci-dessus dans un fichier index.html.
+
+    Place le code Python dans un fichier app.py à la racine.
+
+    Installe les dépendances si nécessaire : pip install flask tensorflow pillow numpy.
+
+    Lance avec python app.py et ouvre [http://127.0.0.1:5000](http://127.0.0.1:5000).

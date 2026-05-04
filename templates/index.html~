@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <title>Digit AI | Analyse Proba</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        /* Changement des variables de couleurs pour le thème JAUNE */
+        :root { 
+            --primary: #FACC15; /* Jaune vif */
+            --primary-dark: #EAB308;
+            --bg: #111827; /* Fond sombre pour faire ressortir le jaune */
+            --card: #1F2937; 
+            --text: #F9FAFB; 
+            --border: #374151; 
+        }
+        
+        body { background: var(--bg); color: var(--text); font-family: 'Inter', sans-serif; margin: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 100vh; }
+        .header { text-align: center; margin-bottom: 2rem; }
+        .header h1 { color: var(--primary); margin-bottom: 0.5rem; }
+        
+        .main-card { background: var(--card); padding: 2.5rem; border-radius: 24px; box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.3); display: flex; gap: 3rem; border: 1px solid var(--border); }
+        
+        /* Configuration de l'URL */
+        .config-section { width: 100%; margin-bottom: 1.5rem; display: flex; flex-direction: column; gap: 0.5rem; }
+        .config-section label { font-size: 0.85rem; color: #9CA3AF; font-weight: 600; }
+        .url-input { background: #111827; border: 1px solid var(--border); color: white; padding: 0.6rem; border-radius: 8px; outline: none; transition: 0.2s; }
+        .url-input:focus { border-color: var(--primary); box-shadow: 0 0 0 2px rgba(250, 204, 21, 0.2); }
+
+        /* Dessin */
+        .canvas-container { position: relative; border-radius: 12px; overflow: hidden; background: #000; border: 2px solid var(--border); }
+        #grid-overlay { position: absolute; top: 0; left: 0; pointer-events: none; display: grid; grid-template-columns: repeat(28, 10px); grid-template-rows: repeat(28, 10px); }
+        .cell { border: 0.5px solid rgba(255, 255, 255, 0.05); width: 10px; height: 10px; }
+        canvas { display: block; cursor: crosshair; image-rendering: pixelated; }
+
+        /* Analyse */
+        .analysis-section { width: 350px; display: flex; flex-direction: column; }
+        .result-badge { background: rgba(250, 204, 21, 0.1); color: var(--primary); padding: 1rem; border-radius: 12px; text-align: center; margin-bottom: 1rem; font-weight: 700; border: 1px solid var(--primary); }
+        .chart-wrapper { flex-grow: 1; height: 300px; }
+
+        /* Boutons */
+        .button-group { margin-top: 1.5rem; display: flex; gap: 0.75rem; }
+        button { flex: 1; padding: 0.8rem; border-radius: 10px; font-weight: 600; cursor: pointer; transition: 0.2s; border: 1px solid var(--border); background: transparent; color: white; }
+        .btn-primary { background: var(--primary); color: #000; border: none; }
+        .btn-primary:hover { background: var(--primary-dark); transform: translateY(-1px); }
+        button:not(.btn-primary):hover { background: rgba(255,255,255,0.05); }
+    </style>
+</head>
+<body>
+
+    <div class="header">
+        <h1>Digit AI</h1>
+        <p>Analyse de probabilités par pixel</p>
+    </div>
+
+    <div class="main-card">
+        <div>
+            <div class="config-section">
+                <label for="apiUrl">URL de l'API Predict</label>
+                <input type="text" id="apiUrl" class="url-input" value="http://127.0.0.1:5000/predict" placeholder="https://votre-api.com/predict">
+            </div>
+
+            <div class="canvas-container">
+                <canvas id="canvas" width="280" height="280"></canvas>
+                <div id="grid-overlay"></div>
+            </div>
+            <div class="button-group">
+                <button onclick="clearCanvas()">Effacer</button>
+                <button class="btn-primary" onclick="predict()">Analyser</button>
+            </div>
+        </div>
+
+        <div class="analysis-section">
+            <div id="status" class="result-badge">Prêt</div>
+            <div class="chart-wrapper">
+                <canvas id="probChart"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d', { alpha: false });
+        const PIXEL_SIZE = 10;
+        let isDrawing = false;
+
+        // Configuration Chart.js
+        const chartCtx = document.getElementById('probChart').getContext('2d');
+        const probChart = new Chart(chartCtx, {
+            type: 'bar',
+            data: {
+                labels: ['0','1','2','3','4','5','6','7','8','9'],
+                datasets: [{ 
+                    data: new Array(10).fill(0), 
+                    backgroundColor: '#FACC15', // Couleur jaune pour les barres
+                    borderRadius: 4, 
+                    barThickness: 15 
+                }]
+            },
+            options: {
+                indexAxis: 'y',
+                responsive: true,
+                maintainAspectRatio: false,
+                layout: { padding: { right: 40 } },
+                scales: { 
+                    x: { display: false, max: 100 },
+                    y: { 
+                        grid: { display: false }, 
+                        border: { display: false }, 
+                        ticks: { color: '#9CA3AF', font: { weight: '600' } } 
+                    }
+                },
+                plugins: { legend: { display: false } }
+            },
+            plugins: [{
+                id: 'labels',
+                afterDatasetsDraw(chart) {
+                    const { ctx, data, chartArea: { left }, scales: { y } } = chart;
+                    ctx.save();
+                    ctx.font = 'bold 11px sans-serif';
+                    ctx.fillStyle = '#FACC15';
+                    data.datasets[0].data.forEach((val, i) => {
+                        const barWidth = chart.getDatasetMeta(0).data[i].width;
+                        ctx.fillText(val.toFixed(1) + '%', left + barWidth + 5, y.getPixelForTick(i) + 4);
+                    });
+                }
+            }]
+        });
+
+        function init() {
+            const overlay = document.getElementById('grid-overlay');
+            for (let i = 0; i < 28 * 28; i++) {
+                const div = document.createElement('div');
+                div.className = 'cell';
+                overlay.appendChild(div);
+            }
+            clearCanvas();
+        }
+
+        function draw(e) {
+            if (!isDrawing) return;
+            const rect = canvas.getBoundingClientRect();
+            const x = Math.floor((e.clientX - rect.left) / PIXEL_SIZE);
+            const y = Math.floor((e.clientY - rect.top) / PIXEL_SIZE);
+            ctx.fillStyle = "white"; // Le dessin reste blanc (format MNIST classique)
+            ctx.fillRect(x * PIXEL_SIZE, y * PIXEL_SIZE, PIXEL_SIZE, PIXEL_SIZE);
+        }
+
+        canvas.onmousedown = (e) => { isDrawing = true; draw(e); };
+        canvas.onmousemove = draw;
+        window.onmouseup = () => isDrawing = false;
+
+        function clearCanvas() {
+            ctx.fillStyle = "black";
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            probChart.data.datasets[0].data = new Array(10).fill(0);
+            probChart.update();
+            document.getElementById('status').innerText = "Dessinez un chiffre";
+        }
+
+        async function predict() {
+            const statusLabel = document.getElementById('status');
+            const apiUrl = document.getElementById('apiUrl').value; // Récupère l'URL saisie
+
+            try {
+                statusLabel.innerText = "Analyse en cours...";
+                
+                const temp = document.createElement('canvas');
+                temp.width = 28; temp.height = 28;
+                temp.getContext('2d').drawImage(canvas, 0, 0, 280, 280, 0, 0, 28, 28);
+                
+                const res = await fetch(apiUrl, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ image: temp.toDataURL() })
+                });
+
+                if (!res.ok) throw new Error("Erreur serveur");
+
+                const data = await res.json();
+                statusLabel.innerText = `Résultat : Chiffre ${data.digit}`;
+                probChart.data.datasets[0].data = data.probabilities.map(p => p * 100);
+                probChart.update();
+
+            } catch (error) {
+                statusLabel.innerText = "Erreur de connexion";
+                console.error(error);
+            }
+        }
+        init();
+    </script>
+</body>
+</html>
