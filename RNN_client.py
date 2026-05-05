@@ -6,8 +6,11 @@ from PIL import Image
 import json
 import random
 
+# URL = "http://127.0.0.1:5000"
+URL = "http://rnn.dokpoly.claveille.fr"
+
 class MNISTClient:
-    def __init__(self, server_url="http://127.0.0.1:5000"):
+    def __init__(self, server_url=URL):
         self.url = f"{server_url}/predict"
 
     def array_to_base64(self, image_array):
