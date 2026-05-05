@@ -111,3 +111,7 @@ if __name__ == '__main__':
     
     # Lancement
     server.run()
+else: # pour gunicorn
+    classifier = DigitClassifier('model.keras')
+    _server = DigitServer(classifier)
+    app = _server.app
