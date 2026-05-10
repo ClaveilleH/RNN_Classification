@@ -58,10 +58,11 @@ if __name__ == "__main__":
     from tensorflow.keras.datasets import mnist
     (_, _), (x_test, y_test) = mnist.load_data()
 
-    client = MNISTClient("http://127.0.0.1:5000")
+    # client = MNISTClient("http://127.0.0.1:5000")
+    client = MNISTClient(URL)
 
     # 2. Choisir 5 images au hasard et les envoyer
-    for _ in range(5):
+    for _ in range(50):
         index = random.randint(0, len(x_test) - 1)
         image = x_test[index] / 255.0  # Normalisation
         label = y_test[index]

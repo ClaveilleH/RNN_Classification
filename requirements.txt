@@ -4,3 +4,4 @@ numpy>=1.26.0
 pillow>=10.0.0
 tensorflow>=2.16.0
 gunicorn>=21.0.0
+psycopg2-binary>=2.9.12
