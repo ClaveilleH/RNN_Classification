@@ -26,6 +26,26 @@ def make_model(fn='model.keras'):
     model.save(fn)
     print(f"[Factory] Modèle sauvegardé : {fn}")
 
+def make_model_v2(fn='model_v2.keras'):
+    (x_train, y_train), _ = datasets.mnist.load_data()
+    x_train = x_train.reshape(-1, 28, 28, 1) / 255.0
+
+    model = models.Sequential([
+        layers.Conv2D(32, (3,3), activation='relu', input_shape=(28,28,1)),
+        layers.MaxPooling2D((2,2)),
+        layers.Conv2D(64, (3,3), activation='relu'),  # 2ème couche conv
+        layers.MaxPooling2D((2,2)),
+        layers.Flatten(),
+        layers.Dense(128, activation='relu'),
+        layers.Dropout(0.3),                          # évite l'overfitting
+        layers.Dense(10, activation='softmax')
+    ])
+    model.compile(optimizer='adam',
+                  loss='sparse_categorical_crossentropy',
+                  metrics=['accuracy'])
+    model.fit(x_train, y_train, epochs=10)
+    model.save(fn)
+    print(f"[Factory] Modèle sauvegardé : {fn}")
 
 def upload_model(fn='model.keras', name=None, url=None):
     """
@@ -82,16 +102,21 @@ def activate_model(model_id: int, url=None):
 
 # ─────────────────────────────────────────────
 if __name__ == '__main__':
-    fn = 'model.keras'
+    # fn = 'model.keras'
 
     # 1. Entraîner le modèle localement
     # make_model(fn)
 
     # 2. L'uploader sur Dokploy (sauvegarde en BDD + activation)
-    upload_model(fn, name='cnn_v1')
+    # upload_model(fn, name='cnn_v1')
 
     # 3. Lister les modèles disponibles sur le serveur
-    list_models()
+    # list_models()
 
     # 4. (Optionnel) Activer un ancien modèle par son ID
     # activate_model(1)
+
+    # make_model_v2('model_v2.keras')
+    # upload_model('model_v2.keras', name='cnn_v2_dropout')
+    # list_models()
+    activate_model(2)

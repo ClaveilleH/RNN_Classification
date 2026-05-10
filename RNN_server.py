@@ -44,23 +44,36 @@ class DigitClassifier:
 
     def __init__(self):
         self.model = None
-        self._load_active_model()
+        self.active_model_id = None  # id du modèle actuellement en mémoire
+        self._sync_model()
 
-    def _load_active_model(self):
-        """Charge le modèle actif depuis la base de données au démarrage."""
+    def _sync_model(self):
+        """
+        Vérifie l'id du modèle actif en BDD.
+        Recharge en mémoire seulement si différent de ce qu'on a déjà.
+        Appelé au démarrage ET avant chaque prédiction.
+        """
         try:
             with get_db() as conn:
                 with conn.cursor() as cur:
                     cur.execute("SELECT id, name, data FROM models WHERE is_active = TRUE LIMIT 1")
                     row = cur.fetchone()
 
-            if row:
-                print(f"[DB] Chargement du modèle actif : '{row['name']}' (id={row['id']})")
-                self._load_model_from_bytes(bytes(row['data']))
-            else:
+            if not row:
                 print("[DB] Aucun modèle actif en base. En attente d'un upload.")
+                self.model = None
+                self.active_model_id = None
+                return
+
+            if row['id'] == self.active_model_id:
+                return  # déjà le bon modèle en mémoire, rien à faire
+
+            print(f"[DB] Nouveau modèle actif détecté : '{row['name']}' (id={row['id']})")
+            self._load_model_from_bytes(bytes(row['data']))
+            self.active_model_id = row['id']
+
         except Exception as e:
-            print(f"[DB] Impossible de charger le modèle depuis la BDD : {e}")
+            print(f"[DB] Erreur sync modèle : {e}")
 
     def _load_model_from_bytes(self, model_bytes: bytes):
         """Écrit les bytes dans un fichier temporaire et charge le modèle Keras."""
@@ -71,7 +84,7 @@ class DigitClassifier:
             self.model = load_model(tmp_path)
             print("[Model] Modèle chargé en mémoire.")
         finally:
-            os.unlink(tmp_path)  # nettoyage du fichier temporaire
+            os.unlink(tmp_path)
 
     def load_model_from_bytes(self, model_bytes: bytes):
         """API publique pour recharger depuis des bytes (utilisée à l'upload)."""
@@ -84,6 +97,7 @@ class DigitClassifier:
         return np.array(img).reshape(1, 28, 28, 1) / 255.0
 
     def predict(self, base64_image):
+        self._sync_model()  # chaque replica vérifie si le modèle actif a changé
         if self.model is None:
             raise RuntimeError("Aucun modèle chargé. Uploadez-en un d'abord.")
         img_array = self._preprocess(base64_image)
