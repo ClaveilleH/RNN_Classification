@@ -36,7 +36,7 @@ class MNISTClient:
 
         try:
             response = requests.post(self.url, data=payload, headers=headers)
-            print(f"RAW : {response.text}")
+            # print(f"RAW : {response.text}")
             result = response.json()
             
             print(f"--- Test de prédiction ---")

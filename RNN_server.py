@@ -9,6 +9,7 @@ import tempfile
 import os
 import psycopg2
 from psycopg2.extras import RealDictCursor
+import psutil
 
 # ─────────────────────────────────────────────
 # Connexion PostgreSQL
@@ -126,7 +127,7 @@ class DigitServer:
         self.app.add_url_rule('/models/<int:model_id>/activate',
                                                         'activate_model', self.activate_model,   methods=['POST'])
         self.app.add_url_rule('/models/<int:model_id>', 'delete_model',   self.delete_model,     methods=['DELETE'])
-
+        self.app.add_url_rule('/metrics', 'metrics', self.metrics, methods=['GET'])
     # ── Routes ────────────────────────────────
 
     def index(self):
@@ -247,6 +248,29 @@ class DigitServer:
             return jsonify({'message': f'Modèle id={model_id} supprimé.'})
         except Exception as e:
             return jsonify({'error': str(e)}), 500
+
+    def metrics(self):
+        """
+        Retourne les métriques système en temps réel.
+        Appelé par le stress tester (ou tout outil de monitoring).
+        """
+        cpu_per_core = psutil.cpu_percent(percpu=True)
+        mem          = psutil.virtual_memory()
+        swap         = psutil.swap_memory()
+ 
+        return jsonify({
+            "cpu_percent":       psutil.cpu_percent(),          # CPU total (%)
+            "cpu_per_core":      cpu_per_core,                  # liste par cœur
+            "cpu_count":         psutil.cpu_count(),
+            "mem_total_mb":      round(mem.total   / 1024**2),
+            "mem_used_mb":       round(mem.used    / 1024**2),
+            "mem_percent":       mem.percent,
+            "swap_used_mb":      round(swap.used   / 1024**2),
+            "swap_percent":      swap.percent,
+            "load_avg_1m":       psutil.getloadavg()[0],        # charge 1 min
+        })
+ 
+
 
     def run(self, debug=True):
         self.app.run(debug=debug, host='0.0.0.0')
